@@ -4,11 +4,16 @@
 #include "device_config/reset.h"
 #include "hal/nvm.h"
 #include "hal/printf_selector.h"
+#include "hal/rtc.h"
 #include "hal/system.h"
+#include "hal/timer.h"
 #include "hal/zigbee.h"
 #include "hal/zigbee_ota.h"
 #include "zigbee/battery_cluster.h"
 #include "zigbee/general_commands.h"
+#include "zigbee/rtc_cluster.h"
+#include "zigbee/relay_cluster.h"
+#include "sun_time.h"
 #ifdef END_DEVICE
 #include "zigbee/poll_control_cluster.h"
 #endif
@@ -43,22 +48,61 @@ void process_device_type_change() {
     }
 }
 
+#define RTC_TICK_INTERVAL_MS (1u * 1000u)
+#define NIGHT_CHECK_INTERVAL_MS (1u * 60 * 1000u)
+#define NIGHT_INIT_CHECK_INTERVAL_MS (5u * 1000u)
+
+static bool     boot_announce_sent = false;
+static uint32_t last_rtc_tick_ms   = 0;
+static bool     is_night = false;
+static uint32_t last_night_check_ms   = 0;
+
 void app_init(void) {
     handle_version_changes();
     parse_config(); // Does most of the setup, including all callbacks
                     // registration
+    hal_rtc_init();
     hal_zigbee_init_ota();
     init_global_attr_write_callback();
 
     process_device_type_change();
-}
 
-static bool boot_announce_sent = false;
+    uint32_t now_ms = hal_millis();
+    last_rtc_tick_ms = now_ms;
+    last_night_check_ms = now_ms - NIGHT_CHECK_INTERVAL_MS + NIGHT_INIT_CHECK_INTERVAL_MS; // Check night mode soon after boot
+}
 
 void app_task() {
 #ifdef END_DEVICE
     poll_control_cluster_update();
 #endif
+
+    uint32_t now_ms = hal_millis();
+
+    rtc_cluster_time_sync_tick(now_ms);
+
+    if (now_ms - last_rtc_tick_ms > RTC_TICK_INTERVAL_MS) {
+        last_rtc_tick_ms = now_ms;
+        rtc_cluster_tick();
+    }
+
+    if (now_ms - last_night_check_ms > NIGHT_CHECK_INTERVAL_MS) {
+        last_night_check_ms = now_ms;
+        hal_rtc_time_t rtc_time;
+        if (get_rtc_time(&rtc_time) == 0) {
+            int day_time_result = is_daytime(&rtc_time);
+            if (day_time_result >= 0) {
+                if (day_time_result == 1 && is_night) {
+                    printf("It's now daytime\r\n");
+                    set_all_relays_state(false);
+                } else if (day_time_result == 0 && !is_night) {
+                    printf("It's now nighttime\r\n");
+                    set_all_relays_state(true);
+                }
+                is_night = !day_time_result;
+            }
+        }
+    }
 
     // TODO: add jitter to avoid all devices trying to join at once
     if (hal_zigbee_get_network_status() != HAL_ZIGBEE_NETWORK_JOINED &&

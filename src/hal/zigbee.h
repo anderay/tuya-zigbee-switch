@@ -112,12 +112,27 @@ typedef void (*hal_attribute_change_callback_t)(uint8_t endpoint,
                                                 uint16_t cluster_id,
                                                 uint16_t attribute_id);
 
+/** Function called when remote attribute value is received (read response/report) */
+typedef void (*hal_remote_attribute_callback_t)(uint8_t endpoint,
+                                                uint16_t cluster_id,
+                                                uint16_t attribute_id,
+                                                uint8_t data_type,
+                                                const uint8_t *value,
+                                                uint8_t value_len);
+
 /**
  * Register callback for attribute changes from network
  * @param callback Function to call when attributes are written
  */
 void hal_zigbee_register_on_attribute_change_callback(
     hal_attribute_change_callback_t callback);
+
+/**
+ * Register callback for remote attribute values received from other devices
+ * (for example via Read Attributes Response or Report Attributes)
+ */
+void hal_zigbee_register_on_remote_attribute_callback(
+    hal_remote_attribute_callback_t callback);
 
 /** Zigbee command direction (client sends commands, server responds) */
 typedef enum {
@@ -152,6 +167,13 @@ typedef enum {
  * @return HAL_ZIGBEE_OK on success, error code otherwise
  */
 hal_zigbee_status_t hal_zigbee_send_cmd_to_bindings(const hal_zigbee_cmd *cmd);
+
+/**
+ * Send command to coordinator (address 0x0000, endpoint 1)
+ * @param cmd Command structure to send
+ * @return HAL_ZIGBEE_OK on success, error code otherwise
+ */
+hal_zigbee_status_t hal_zigbee_send_cmd_to_coordinator(const hal_zigbee_cmd *cmd);
 
 /**
  * Send attribute report to bound devices (notify of state changes)

@@ -10,6 +10,7 @@
 #include "zigbee/relay_cluster.h"
 #include "zigbee/poll_control_cluster.h"
 #include "zigbee/switch_cluster.h"
+#include "zigbee/rtc_cluster.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -61,6 +62,12 @@ uint8_t cover_switch_clusters_cnt = 0;
 
 zigbee_cover_cluster cover_clusters[3];
 uint8_t cover_clusters_cnt = 0;
+
+zigbee_rtc_cluster rtc_cluster = {
+    .utc_time = 0,
+    .time_status = 0,
+    .time_zone = 0,
+};
 
 hal_zigbee_cluster  clusters[32];
 hal_zigbee_endpoint endpoints[10];
@@ -327,6 +334,8 @@ void parse_config() {
 
     endpoints[0].clusters = cluster_ptr;
     basic_cluster_add_to_endpoint(&basic_cluster, &endpoints[0]);
+
+    rtc_cluster_add_to_endpoint(&rtc_cluster, &endpoints[0]);
 
     hal_ota_cluster_setup(&endpoints[0].clusters[endpoints[0].cluster_count]);
     endpoints[0].cluster_count++;

@@ -52,6 +52,18 @@ void update_relay_clusters() {
     }
 }
 
+void set_all_relays_state(bool enable) {
+    for (int i = 0; i < 10; i++) {
+        if (relay_cluster_by_endpoint[i] != NULL) {
+            if (enable) {
+                relay_cluster_on(relay_cluster_by_endpoint[i]);
+            } else {
+                relay_cluster_off(relay_cluster_by_endpoint[i]);
+            }
+        }
+    }
+}
+
 void relay_cluster_add_to_endpoint(zigbee_relay_cluster *cluster,
                                    hal_zigbee_endpoint *endpoint) {
     relay_cluster_by_endpoint[endpoint->endpoint] = cluster;

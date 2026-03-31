@@ -26,6 +26,7 @@ static hal_zigbee_endpoint *hal_endpoints = NULL;
 static uint8_t hal_endpoints_cnt          = 0;
 static hal_attribute_change_callback_t attribute_change_callback = NULL;
 static hal_zcl_activity_callback_t     zcl_activity_callback     = NULL;
+static hal_remote_attribute_callback_t remote_attribute_callback = NULL;
 
 static cluster_registerFunc_t get_register_func_by_cluster_id(u16 cluster_id) {
     if (cluster_id == ZCL_CLUSTER_GEN_BASIC) {
@@ -61,6 +62,9 @@ static cluster_registerFunc_t get_register_func_by_cluster_id(u16 cluster_id) {
     }
     if (cluster_id == ZCL_CLUSTER_GEN_POLL_CONTROL) {
         return zcl_pollCtrl_register;
+    }
+    if (cluster_id == ZCL_CLUSTER_GEN_TIME) { // Time cluster
+        return zcl_time_register;
     }
     return NULL;
 }
@@ -153,6 +157,38 @@ static void zcl_incoming_message_callback(zclIncoming_t *pInHdlrMsg) {
             attribute_change_callback(pInHdlrMsg->msg->indInfo.dst_ep,
                                       pInHdlrMsg->msg->indInfo.cluster_id,
                                       writeCmd->attrList[i].attrID);
+        }
+    } else if (pInHdlrMsg->hdr.cmd == ZCL_CMD_READ_RSP) {
+        if (remote_attribute_callback == NULL) {
+            return;
+        }
+        zclReadRspCmd_t *read_rsp = (zclReadRspCmd_t *)pInHdlrMsg->attrCmd;
+        for (u8 i = 0; i < read_rsp->numAttr; i++) {
+            if (read_rsp->attrList[i].status != ZCL_STA_SUCCESS) {
+                continue;
+            }
+            u8 value_len = zcl_getAttrSize(read_rsp->attrList[i].dataType,
+                                           read_rsp->attrList[i].data);
+            remote_attribute_callback(pInHdlrMsg->msg->indInfo.dst_ep,
+                                      pInHdlrMsg->msg->indInfo.cluster_id,
+                                      read_rsp->attrList[i].attrID,
+                                      read_rsp->attrList[i].dataType,
+                                      read_rsp->attrList[i].data, value_len);
+        }
+    } else if (pInHdlrMsg->hdr.cmd == ZCL_CMD_REPORT) {
+        if (remote_attribute_callback == NULL) {
+            return;
+        }
+        zclReportCmd_t *report_cmd = (zclReportCmd_t *)pInHdlrMsg->attrCmd;
+        for (u8 i = 0; i < report_cmd->numAttr; i++) {
+            u8 value_len = zcl_getAttrSize(report_cmd->attrList[i].dataType,
+                                           report_cmd->attrList[i].attrData);
+            remote_attribute_callback(pInHdlrMsg->msg->indInfo.dst_ep,
+                                      pInHdlrMsg->msg->indInfo.cluster_id,
+                                      report_cmd->attrList[i].attrID,
+                                      report_cmd->attrList[i].dataType,
+                                      report_cmd->attrList[i].attrData,
+                                      value_len);
         }
     }
 }
@@ -258,6 +294,26 @@ hal_zigbee_status_t hal_zigbee_send_cmd_to_bindings(const hal_zigbee_cmd *cmd) {
     return HAL_ZIGBEE_OK;
 }
 
+hal_zigbee_status_t hal_zigbee_send_cmd_to_coordinator(const hal_zigbee_cmd *cmd) {
+    epInfo_t dstEpInfo;
+
+    TL_SETSTRUCTCONTENT(dstEpInfo, 0);
+
+    dstEpInfo.profileId            = HA_PROFILE_ID;
+    dstEpInfo.dstAddrMode          = APS_SHORT_DSTADDR_WITHEP;
+    dstEpInfo.dstAddr.shortAddr    = 0x0000;
+    dstEpInfo.dstEp                = 1;
+    zcl_sendCmd(cmd->endpoint, &dstEpInfo, cmd->cluster_id, cmd->command_id,
+                cmd->cluster_specific,
+                cmd->direction == HAL_ZIGBEE_DIR_CLIENT_TO_SERVER
+                  ? ZCL_FRAME_CLIENT_SERVER_DIR
+                  : ZCL_FRAME_SERVER_CLIENT_DIR,
+                cmd->disable_default_rsp, cmd->manufacturer_code, ZCL_SEQ_NUM,
+                cmd->payload_len, (u8 *)cmd->payload);
+
+    return HAL_ZIGBEE_OK;
+}
+
 hal_zigbee_status_t
 hal_zigbee_send_report_attr(uint8_t endpoint, uint16_t cluster_id,
                             uint16_t attr_id, uint8_t zcl_type_id,
@@ -281,6 +337,11 @@ hal_zigbee_send_report_attr(uint8_t endpoint, uint16_t cluster_id,
 void hal_zigbee_register_on_attribute_change_callback(
     hal_attribute_change_callback_t callback) {
     attribute_change_callback = callback;
+}
+
+void hal_zigbee_register_on_remote_attribute_callback(
+    hal_remote_attribute_callback_t callback) {
+    remote_attribute_callback = callback;
 }
 
 void hal_zigbee_register_on_zcl_activity_callback(hal_zcl_activity_callback_t callback) {

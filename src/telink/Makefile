@@ -131,6 +131,7 @@ TELINK_SOURCES := \
 	hal/gpio.c \
 	hal/gpio_interrupts.c \
 	hal/nvm.c \
+	hal/rtc.c \
 	hal/zigbee.c \
 	hal/zigbee_network.c \
 	hal/zigbee_zcl.c \
@@ -145,6 +146,7 @@ TELINK_SOURCES := \
 # Common source files (shared with Silicon Labs build)
 COMMON_SOURCES := \
 	$(SRC_DIR)/app.c \
+	$(SRC_DIR)/sun_time.c \
 	$(SRC_DIR)/zigbee/poll_control_cluster.c \
 	$(SRC_DIR)/base_components/button.c \
 	$(SRC_DIR)/base_components/led.c \
@@ -163,7 +165,8 @@ COMMON_SOURCES := \
 	$(SRC_DIR)/zigbee/switch_cluster.c \
 	$(SRC_DIR)/zigbee/cover_switch_cluster.c \
 	$(SRC_DIR)/zigbee/cover_cluster.c \
-	$(SRC_DIR)/zigbee/battery_cluster.c 
+	$(SRC_DIR)/zigbee/battery_cluster.c \
+	$(SRC_DIR)/zigbee/rtc_cluster.c
 
 # All application sources
 ALL_TELINK_SOURCES := $(TELINK_SOURCES) $(COMMON_SOURCES)

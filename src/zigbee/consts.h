@@ -10,6 +10,7 @@
 #define ZCL_CLUSTER_POWER_CFG                 1
 #define ZCL_CLUSTER_ON_OFF                    6
 #define ZCL_CLUSTER_ON_OFF_SWITCH_CONFIG      7
+#define ZCL_CLUSTER_RTC                       0x000A
 #define ZCL_CLUSTER_MULTISTATE_INPUT_BASIC    0x0012
 #define ZCL_CLUSTER_LEVEL_CONTROL             0x0008
 #define ZCL_CLUSTER_GROUPS                    0x0004
@@ -125,6 +126,11 @@
 #define ZCL_ATTR_OTA_MINIMUM_BLOCK_PERIOD               0x0009
 #define ZCL_ATTR_OTA_IMAGE_STAMP                        0x000A
 
+// RTC cluster
+#define ZCL_ATTR_RTC_UTC_TIME           0x0000
+#define ZCL_ATTR_RTC_TIME_STATUS        0x0001
+#define ZCL_ATTR_RTC_TIME_ZONE          0x0002
+
 // Attr values
 
 // OnOff cluster
@@ -182,6 +188,10 @@
 #define ZCL_COVER_SWITCH_MODE_HYBRID         0x03
 
 // Commands
+
+// Global ZCL commands
+
+#define ZCL_CMD_READ_ATTRIBUTES              0x00
 
 // OnOff Cluster
 
